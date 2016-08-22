@@ -8,6 +8,7 @@ from chimera import openModels, Molecule, Element, Coord, selection
 from Midas import wait
 from chimera.colorTable import getColorByName
 from chimera.colorTable import colors as colorDict
+from chimera import MaterialColor
 from chimera import runCommand as rc
 
 import nmwiz
@@ -27,21 +28,21 @@ class NMWizDialog(ModelessDialog):
 	title = 'NMWiz - Main 1.2'
 	name = 'Normal Mode Wizard - 1.2'
 
-	buttons = ( 'Website', 'Close')
-	help = 'prody.csb.pitt.edu'
+	buttons = ('Close')
+	#help = 'prody.csb.pitt.edu'
 	title = 'NMWiz - Main 1.2'
-	Website = 'http://prody.csb.pitt.edu'
+	#Website = 'http://prody.csb.pitt.edu'
 
 	def fillInUI(self, parent):
 
 		self.file_name = Tkinter.StringVar(parent)
 		LoadNMDbutton = Tkinter.Button(parent, text="Load NMD File", command= self.loadNMDFile)
 		LoadNMDbutton.grid(column=0,row=0)
-		FromMolbutton = Tkinter.Button(parent, text="From Molecule", command=self.FromMolecule)
+		FromMolbutton = Tkinter.Button(parent, text="From Molecule", state=Tkinter.DISABLED)
 		FromMolbutton.grid(column=0,row=1)
 		FromMolbutton = Tkinter.Button(parent, text="ProDy Interface", command=self.prodyInterface)
 		FromMolbutton.grid(column=0,row=2)
-		FromMolbutton = Tkinter.Button(parent, text="Structure Comparison")
+		FromMolbutton = Tkinter.Button(parent, text="Structure Comparison", state=Tkinter.DISABLED)
 		FromMolbutton.grid(column=0,row=3)
 
 
@@ -288,13 +289,19 @@ class NMWizDialog(ModelessDialog):
 			coords = coords[sortedCoord,:]
 			self.atomNumber = coords.shape[0]
 
-			anm = prody.ANM(self.activeMoleculeStr.get())
-			anm.buildHessian(coords,cutoff=float(self.Cutoff.get()),gamma=float(self.Gamma.get()))
-			anm.calcModes(n_modes=int(self.numberOfModes.get()))
-			atomGroup = prody.AtomGroup()
-			atomGroup.setNames(['CA']*coords.shape[0])
-			atomGroup.setCoords(coords)
-			prody.writeNMD(self.outputDir.get() + "/" + self.outputFileName.get(), anm, atomGroup)
+			if self.activeJob.get() == 'ANM calculation':
+				nm = prody.ANM(self.activeMoleculeStr.get())
+				nm.buildHessian(coords,cutoff=float(self.Cutoff.get()),gamma=float(self.Gamma.get()))
+				nm.calcModes(n_modes=int(self.numberOfModes.get()))
+				atomGroup = prody.AtomGroup()
+				atomGroup.setNames(['CA']*coords.shape[0])
+				atomGroup.setCoords(coords)
+			elif self.activeJob.get() == 'GNM calculation':
+				nm = prody.GNM(self.activeMoleculeStr.get())
+				nm.buildKirchhoff(coords,cutoff=float(self.Cutoff.get()),gamma=float(self.Gamma.get()))
+				nm.calcModes(n_modes=int(self.numberOfModes.get()))
+			
+			prody.writeNMD(self.outputDir.get() + "/" + self.outputFileName.get(), nm, atomGroup)
 			self.total_mode = int(self.numberOfModes.get())
 
 			self.scales = np.zeros(self.total_mode)
@@ -310,19 +317,20 @@ class NMWizDialog(ModelessDialog):
 				self.scales2[i] = float(self.rmsd.get())*np.sqrt(coords.shape[0])/self.scales[i]
 			
 			self.coordinates = coords
-			print coords[0]
 			self._buildNMDWindow()
 
-			self._buildArrows()
-			self._drawArrows()
+			if self.activeJob.get() == 'ANM calculation':
+				self._buildArrows()
+				self._drawArrows()
+				self._colorArrows()		
 
 			self.molecules = openModels.list()
 			self.proteinMol = self.molecules[0]
-			self.arrowMol = self.molecules[1]
+			if self.activeJob.get() == 'ANM calculation':
+				self.arrowMol = self.molecules[1]
 			rc("ribspline cardinal spec @CA")
 
-			self._colorArrows()		
-
+			
 	def _buildNMDWindow(self):
 
 		self.arrow_direction = 1
@@ -389,30 +397,30 @@ class NMWizDialog(ModelessDialog):
 		w2_5 = Tkinter.Button(group, text="-0.1", command=self._decrementRMSD)
 		w2_5.grid(row=2,column=7)
 
-		w3_0 = Tkinter.Label(group, text="Selection:")
-		w3_0.grid(row=3,column=0)
-		self.selection = Tkinter.StringVar()
-		self.selection.set("")
-		w3_1 = Tkinter.Entry(group, textvariable=self.selection)
-		w3_1.grid(row=3,column=1,columnspan=5)
-		w3_2 = Tkinter.Button(group, text="Redraw", command=self._redraw)
-		w3_2.grid(row=3,column=6,columnspan=2)
+		# w3_0 = Tkinter.Label(group, text="Selection:")
+		# w3_0.grid(row=3,column=0)
+		# self.selection = Tkinter.StringVar()
+		# self.selection.set("")
+		# w3_1 = Tkinter.Entry(group, textvariable=self.selection)
+		# w3_1.grid(row=3,column=1,columnspan=5)
+		# w3_2 = Tkinter.Button(group, text="Redraw", command=self._redraw)
+		# w3_2.grid(row=3,column=6,columnspan=2)
 
-		w4_0 = Tkinter.Button(group, text="Plot Mobility", command=self._plotMobility)
-		w4_0.grid(row=4,column=0,columnspan=3)
-		w4_1 = Tkinter.Button(group, text="Load Heatmap", command=self._plotHeatmap)
-		w4_1.grid(row=4,column=3,columnspan=3)
-		w4_2 = Tkinter.Button(group, text="Plot Data", command=self._plotData)
-		w4_2.grid(row=4,column=6,columnspan=3)
+		w3_0 = Tkinter.Button(group, text="Plot Mobility", command=self._plotMobility)
+		w3_0.grid(row=3,column=0,columnspan=3)
+		w3_1 = Tkinter.Button(group, text="Load Heatmap", command=self._plotHeatmap)
+		w3_1.grid(row=3,column=3,columnspan=3)
+		w3_2 = Tkinter.Button(group, text="Plot Data", command=self._plotData)
+		w3_2.grid(row=3,column=6,columnspan=3)
 
-		w5_0 = Tkinter.Button(group, text="Main", command=self._showMain)
-		w5_0.grid(row=5,column=0,columnspan=2)
-		w5_1 = Tkinter.Button(group, text="Save", command=self._save)
-		w5_1.grid(row=5,column=2,columnspan=2)
-		w5_2 = Tkinter.Button(group, text="Remove", command=self._remove)
-		w5_2.grid(row=5,column=4,columnspan=2)
-		w5_3 = Tkinter.Button(group, text="Help", command=self._showHelp)
-		w5_3.grid(row=5,column=6,columnspan=2)
+		w4_0 = Tkinter.Button(group, text="Main", command=self._showMain)
+		w4_0.grid(row=4,column=0,columnspan=2)
+		w4_1 = Tkinter.Button(group, text="Save", command=self._save)
+		w4_1.grid(row=4,column=2,columnspan=2)
+		w4_2 = Tkinter.Button(group, text="Remove", command=self._remove)
+		w4_2.grid(row=4,column=4,columnspan=2)
+		w4_3 = Tkinter.Button(group, text="Help", command=self._showHelp)
+		w4_3.grid(row=4,column=6,columnspan=2)
 
 		group2 = Tkinter.LabelFrame(self.NMD_window, text = "Actions", padx = 5)
 		group2.pack()
@@ -473,8 +481,6 @@ class NMWizDialog(ModelessDialog):
 		self.selectionAtomNumber.set(len(selection.currentAtoms()))
 		self.w3_0.config(text="Information: " + str(self.selectionAtomNumber.get()) + " atoms are selected")
 
-
-
 	def updateActiveMolecule(self,value):
 		self.activeMoleculeStr.set(value)
 		self.activeMoleculeId = self.molOptions.index(self.activeMoleculeStr.get())
@@ -506,6 +512,20 @@ class NMWizDialog(ModelessDialog):
 
 	def _buildMolecule(self):
 
+		try:
+			self.bfactors
+			self.bfactorsExist = True
+		except:
+			self.bfactorsExist = False
+
+		if self.bfactorsExist:
+			from colorsys import hsv_to_rgb
+			self.colors = np.zeros((self.atomNumber,3))
+			minbfactor = min(self.bfactors)
+			maxbfactor = max(self.bfactors)
+			for i in range(self.atomNumber):
+				colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
+				self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
 		self.m = Molecule()
 		for i in range(self.atomNumber):
 			residues = []
@@ -516,6 +536,7 @@ class NMWizDialog(ModelessDialog):
 				r.addAtom(atomCA)
 				atomCA_old = atomCA
 				r.ribbonDisplay = True
+				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 				residues.append(r)
 			else:
 				r = self.m.newResidue("ALA"," ",i," ")
@@ -525,6 +546,7 @@ class NMWizDialog(ModelessDialog):
 				self.m.newBond(atomCA_old,atomCA)
 				atomCA_old = atomCA
 				r.ribbonDisplay = True
+				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 				residues.append(r)
 
 	class NMWizTraj:
@@ -540,7 +562,7 @@ class NMWizDialog(ModelessDialog):
 	def _clearFigure(self):
 		plt.close()
 
-	def _updateView():
+	def _updateView(self):
 		return
 
 	def _focusView():
@@ -559,6 +581,22 @@ class NMWizDialog(ModelessDialog):
 			self.startFrame
 		except:
 			self.startFrame = 1
+
+		try:
+			self.bfactors
+			self.bfactorsExist = True
+		except:
+			self.bfactorsExist = False
+
+		if self.bfactorsExist:
+			from colorsys import hsv_to_rgb
+			self.colors = np.zeros((self.atomNumber,3))
+			minbfactor = min(self.bfactors)
+			maxbfactor = max(self.bfactors)
+			for i in range(self.atomNumber):
+				colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
+				self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
+
 		self.ProteinMovie = Molecule()
 		for i in range(self.atomNumber):
 			residues = []
@@ -569,6 +607,7 @@ class NMWizDialog(ModelessDialog):
 				r.addAtom(atomCA)
 				atomCA_old = atomCA
 				r.ribbonDisplay = True
+				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 				residues.append(r)
 			else:
 				r = self.ProteinMovie.newResidue("ALA"," ",i," ")
@@ -578,6 +617,7 @@ class NMWizDialog(ModelessDialog):
 				self.ProteinMovie.newBond(atomCA_old,atomCA)
 				atomCA_old = atomCA
 				r.ribbonDisplay = True
+				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 				residues.append(r)
 
 		crdSet1 = self.proteinMol.activeCoordSet
@@ -598,6 +638,7 @@ class NMWizDialog(ModelessDialog):
 						m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 					residues.append(r)
 			elif f<50:
 				for i in range(self.atomNumber):
@@ -610,6 +651,7 @@ class NMWizDialog(ModelessDialog):
 						m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 					residues.append(r)
 
 			elif f<75:
@@ -623,6 +665,7 @@ class NMWizDialog(ModelessDialog):
 						m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 					residues.append(r)
 			else:
 				for i in range(self.atomNumber):
@@ -635,6 +678,7 @@ class NMWizDialog(ModelessDialog):
 						m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 					residues.append(r)
 
 		 	for a1, a2 in zip(self.ProteinMovie.atoms, m.atoms):
@@ -739,6 +783,7 @@ class NMWizDialog(ModelessDialog):
 		stringDATA = ""
 		for i in range(self.atomNumber):
 			if np.linalg.norm(begin[i,:]-end[i,:])>1e-1:
+				print i
 				stringDATA = stringDATA + ".arrow %.3g %.3g %.3g %.3g %.3g %.3g %.3g %3.g\n" % (begin[i,0],begin[i,1],begin[i,2],end[i,0],end[i,1],end[i,2],0.2,0.4)
 		self.arrows = StringIO(stringDATA)
 
@@ -876,12 +921,19 @@ class NMWizDialog(ModelessDialog):
 			f.write("\n")
 		f.write("\n")
 		f.close()
+		
 
 	def _remove(self):
 		self.NMD_window.destroy()
 		plt.close()
 		openModels.remove(self.proteinMol)
 		openModels.remove(self.arrowMol)
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _showHelp(self):
 		self.HelpWindow = Tkinter.Toplevel()
@@ -907,41 +959,89 @@ class NMWizDialog(ModelessDialog):
 		self.current_scale2.set("%.2f" % (float(self.current_scale2.get()) + 1.0))
 		self.rmsd.set("%.2f" % abs(float(self.current_scale2.get())*float(self.current_scale.get())/np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _increment5CurrentScale2(self):
 		self.current_scale2.set("%.2f" % (float(self.current_scale2.get()) + 5.0))
 		self.rmsd.set("%.2f" % abs(float(self.current_scale2.get())*float(self.current_scale.get())/np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _decrement5CurrentScale2(self):
 		self.current_scale2.set("%.2f" % (float(self.current_scale2.get()) - 5.0))
 		self.rmsd.set("%.2f" % abs(float(self.current_scale2.get())*float(self.current_scale.get())/np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _decrementCurrentScale2(self):
 		self.current_scale2.set("%.2f" % (float(self.current_scale2.get()) - 1.0))
 		self.rmsd.set("%.2f" % abs(float(self.current_scale2.get())*float(self.current_scale.get())/np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _incrementRMSD(self):
 		self.rmsd.set("%.2f" % (float(self.rmsd.get()) + 0.1))
 		self.current_scale2.set("%.2f" % abs(float(self.rmsd.get())/float(self.current_scale.get())*np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _increment5RMSD(self):
 		self.rmsd.set("%.2f" % (float(self.rmsd.get()) + 0.5))
 		self.current_scale2.set("%.2f" % abs(float(self.rmsd.get())/float(self.current_scale.get())*np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _decrement5RMSD(self):
 		self.rmsd.set("%.2f" % (float(self.rmsd.get()) - 0.5))
 		self.current_scale2.set("%.2f" % abs(float(self.rmsd.get())/float(self.current_scale.get())*np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _decrementRMSD(self):
 		self.rmsd.set("%.2f" % (float(self.rmsd.get()) - 0.1))
 		self.current_scale2.set("%.2f" % abs(float(self.rmsd.get())/float(self.current_scale.get())*np.sqrt(self.atomNumber)))
 		self._updateArrowScale()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def updateMode(self,active_mode):
 		OPTIONS = list(map(str,range(1,self.total_mode+1)))
@@ -953,14 +1053,33 @@ class NMWizDialog(ModelessDialog):
 		self._drawArrows()
 		self._colorArrows()
 		self._updateLabel()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _updateArrowScale(self):
 		self._updateArrows()
 		self._drawArrows()
+		self._colorArrows()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _updateArrowColor(self,arrow_color):
 		self.arrowMol.color = getColorByName(arrow_color)
 		self._colorArrows()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _activeModeReduce(self):
 		c = (int(self.active_mode.get())-1)%self.total_mode
@@ -968,6 +1087,11 @@ class NMWizDialog(ModelessDialog):
 			self.active_mode.set(self.total_mode)
 		else:
 			self.active_mode.set(c)
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
 		self.updateMode(self.active_mode.get())
 		
 	def _arrowReverse(self):
@@ -975,13 +1099,22 @@ class NMWizDialog(ModelessDialog):
 		self.current_scale2.set("%.2f" % (float(self.current_scale2.get())*-1))
 		self._updateArrows()
 		self._drawArrows()
+		self._colorArrows()
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
+		
 
 	def _activeModeIncrease(self):
 		self.active_mode.set((int(self.active_mode.get())+1)%self.total_mode)
+		try:
+			self.mov.Close()
+			openModels.close(self.ProteinMovie)
+		except:
+			pass
 		self.updateMode(self.active_mode.get())
-		
-	def FromMolecule(self):
-		print self.writeHeat.get()
 
 	def Show(self):
 
