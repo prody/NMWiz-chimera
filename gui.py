@@ -54,15 +54,19 @@ class NMWizDialog(ModelessDialog):
 
 			self._buildMolecule()
 			self._showMolecule()
-			self._buildArrows()
-			self._drawArrows()
+			if self.nmdFormat == 'ANM':
+				self._buildArrows()
+				self._drawArrows()
 
 			self.molecules = openModels.list()
-			self.proteinMol = self.molecules[-2]
-			self.arrowMol = self.molecules[-1]
+			if self.nmdFormat == 'ANM':
+				self.proteinMol = self.molecules[-2]
+				self.arrowMol = self.molecules[-1]
+			else:
+				self.proteinMol = self.molecules[-1]
 			rc("ribspline cardinal spec @CA")
-
-			self._colorArrows()		
+			if self.nmdFormat == 'ANM':
+				self._colorArrows()		
 
 	def parseNMDfile(self):
 		import tkFileDialog
@@ -106,14 +110,24 @@ class NMWizDialog(ModelessDialog):
 					k += 1
 				elif prelabel == 'mode':
 					if mode_in == False:
+						mode_length = len(line.split(' '))-3
 						modeNumber = length - k
 						self.total_mode = modeNumber
 						self.scales = np.zeros(modeNumber)
 						self.scales2 = np.zeros(modeNumber)
 						self.modeNo = np.zeros(modeNumber,dtype=int)
-						self.modes = np.zeros((modeNumber,self.atomNumber*3))
-						self.rmsd = Tkinter.StringVar()
-						self.rmsd.set("2.0")
+						if mode_length == self.atomNumber*3:
+							self.modes = None
+							self.modes = np.zeros((modeNumber,self.atomNumber*3))
+							self.rmsd = Tkinter.StringVar()
+							self.rmsd.set("2.0")
+							self.nmdFormat = 'ANM'
+						elif mode_length == self.atomNumber:
+							self.modes = None
+							self.modes = np.zeros((modeNumber,self.atomNumber))
+							self.rmsd = Tkinter.StringVar()
+							self.rmsd.set("2.0")
+							self.nmdFormat = 'GNM'
 						mode_in = True
 						mode_index = 0
 					self.scales[mode_index] = float(line.split(' ')[2])
@@ -333,142 +347,200 @@ class NMWizDialog(ModelessDialog):
 			
 	def _buildNMDWindow(self):
 
-		self.arrow_direction = 1
-		self.NMD_window = Tkinter.Toplevel()
-		self.NMD_window.title("NMWiz - " + self.name)
+		if self.nmdFormat == 'ANM':
 
-		group = Tkinter.LabelFrame(self.NMD_window, text = self.name, padx = 5)
-		group.pack()
+			self.arrow_direction = 1
+			self.NMD_window = Tkinter.Toplevel()
+			self.NMD_window.title("NMWiz - " + self.name)
 
-		self.active_mode = Tkinter.StringVar(self.NMD_window)
-		OPTIONS = list(map(str,range(1,self.total_mode+1)))
-		self.active_mode.set(OPTIONS[0])
+			group = Tkinter.LabelFrame(self.NMD_window, text = self.name, padx = 5)
+			group.pack()
 
-		w0_0 = Tkinter.Label(group, text="Active Mode:")
-		w0_0.grid(row=0,column=0)
-		w0_1 = Tkinter.OptionMenu(group,self.active_mode,*tuple(OPTIONS),command=self.updateMode) #apply(Tkinter.OptionMenu, (group,self.active_mode) + tuple(OPTIONS))
-		w0_1.grid(row=0,column=1,columnspan=3)
-		w0_2 = Tkinter.Button(group, text="<=", command=self._activeModeReduce)
-		w0_2.grid(row=0,column=4)
-		w0_3 = Tkinter.Button(group, text="+/-", command=self._arrowReverse)
-		w0_3.grid(row=0,column=5)
-		w0_4 = Tkinter.Button(group, text="=>", command=self._activeModeIncrease)
-		w0_4.grid(row=0,column=6)
+			self.active_mode = Tkinter.StringVar(self.NMD_window)
+			OPTIONS = list(map(str,range(1,self.total_mode+1)))
+			self.active_mode.set(OPTIONS[0])
 
-		self.activeColor = Tkinter.StringVar(self.NMD_window)
-		COLOR_OPTIONS = colorDict.keys()
-		self.activeColor.set(COLOR_OPTIONS[0])
-		self.activeColorVariable = getColorByName(self.activeColor.get())
+			w0_0 = Tkinter.Label(group, text="Active Mode:")
+			w0_0.grid(row=0,column=0)
+			w0_1 = Tkinter.OptionMenu(group,self.active_mode,*tuple(OPTIONS),command=self.updateMode) #apply(Tkinter.OptionMenu, (group,self.active_mode) + tuple(OPTIONS))
+			w0_1.grid(row=0,column=1,columnspan=3)
+			w0_2 = Tkinter.Button(group, text="<=", command=self._activeModeReduce)
+			w0_2.grid(row=0,column=4)
+			w0_3 = Tkinter.Button(group, text="+/-", command=self._arrowReverse)
+			w0_3.grid(row=0,column=5)
+			w0_4 = Tkinter.Button(group, text="=>", command=self._activeModeIncrease)
+			w0_4.grid(row=0,column=6)
 
-		w0_5 = Tkinter.OptionMenu(group,self.activeColor,*tuple(COLOR_OPTIONS),command=self._updateArrowColor)
-		w0_5.grid(row=0,column=7,columnspan=3)
+			self.activeColor = Tkinter.StringVar(self.NMD_window)
+			COLOR_OPTIONS = colorDict.keys()
+			self.activeColor.set(COLOR_OPTIONS[0])
+			self.activeColorVariable = getColorByName(self.activeColor.get())
+
+			w0_5 = Tkinter.OptionMenu(group,self.activeColor,*tuple(COLOR_OPTIONS),command=self._updateArrowColor)
+			w0_5.grid(row=0,column=7,columnspan=3)
 		
-		self.current_scale = Tkinter.StringVar()
-		self.current_scale2 = Tkinter.StringVar()
-		w1_0 = Tkinter.Label(group, text="Scale by:")
-		w1_0.grid(row=1,column=0)
-		self.current_scale.set("%.2f" % self.scales[OPTIONS.index(self.active_mode.get())])
-		w1_1 = Tkinter.Entry(group, textvariable=self.current_scale, width=4)
-		w1_1.grid(row=1,column=1,columnspan=3)
-		w1_2 = Tkinter.Label(group, text="x", width=1)
-		w1_2.grid(row=1,column=4)
-		self.current_scale2.set("%.2f" % self.scales2[OPTIONS.index(self.active_mode.get())])
-		w1_3 = Tkinter.Entry(group, textvariable=self.current_scale2, width=6)
-		w1_3.grid(row=1,column=5)
-		w1_4 = Tkinter.Button(group, text="+1", command=self._incrementCurrentScale2)
-		w1_4.grid(row=1,column=6)
-		w1_5 = Tkinter.Button(group, text="+5", command=self._increment5CurrentScale2)
-		w1_5.grid(row=1,column=7)
-		w1_6 = Tkinter.Button(group, text="-5", command=self._decrement5CurrentScale2)
-		w1_6.grid(row=1,column=8)
-		w1_7 = Tkinter.Button(group, text="-1", command=self._decrementCurrentScale2)
-		w1_7.grid(row=1,column=9)
+			self.current_scale = Tkinter.StringVar()
+			self.current_scale2 = Tkinter.StringVar()
+			w1_0 = Tkinter.Label(group, text="Scale by:")
+			w1_0.grid(row=1,column=0)
+			self.current_scale.set("%.2f" % self.scales[OPTIONS.index(self.active_mode.get())])
+			w1_1 = Tkinter.Entry(group, textvariable=self.current_scale, width=4)
+			w1_1.grid(row=1,column=1,columnspan=3)
+			w1_2 = Tkinter.Label(group, text="x", width=1)
+			w1_2.grid(row=1,column=4)
+			self.current_scale2.set("%.2f" % self.scales2[OPTIONS.index(self.active_mode.get())])
+			w1_3 = Tkinter.Entry(group, textvariable=self.current_scale2, width=6)
+			w1_3.grid(row=1,column=5)
+			w1_4 = Tkinter.Button(group, text="+1", command=self._incrementCurrentScale2)
+			w1_4.grid(row=1,column=6)
+			w1_5 = Tkinter.Button(group, text="+5", command=self._increment5CurrentScale2)
+			w1_5.grid(row=1,column=7)
+			w1_6 = Tkinter.Button(group, text="-5", command=self._decrement5CurrentScale2)
+			w1_6.grid(row=1,column=8)
+			w1_7 = Tkinter.Button(group, text="-1", command=self._decrementCurrentScale2)
+			w1_7.grid(row=1,column=9)
 
-		w2_0 = Tkinter.Label(group, text="RMSD (A):")
-		w2_0.grid(row=2,column=0)
-		w2_1 = Tkinter.Entry(group, textvariable=self.rmsd, width=4)
-		w2_1.grid(row=2,column=1,columnspan=3)
-		w2_2 = Tkinter.Button(group, text="+0.1", command=self._incrementRMSD)
-		w2_2.grid(row=2,column=4)
-		w2_3 = Tkinter.Button(group, text="+0.5", command=self._increment5RMSD)
-		w2_3.grid(row=2,column=5)
-		w2_4 = Tkinter.Button(group, text="-0.5", command=self._decrement5RMSD)
-		w2_4.grid(row=2,column=6)
-		w2_5 = Tkinter.Button(group, text="-0.1", command=self._decrementRMSD)
-		w2_5.grid(row=2,column=7)
+			w2_0 = Tkinter.Label(group, text="RMSD (A):")
+			w2_0.grid(row=2,column=0)
+			w2_1 = Tkinter.Entry(group, textvariable=self.rmsd, width=4)
+			w2_1.grid(row=2,column=1,columnspan=3)
+			w2_2 = Tkinter.Button(group, text="+0.1", command=self._incrementRMSD)
+			w2_2.grid(row=2,column=4)
+			w2_3 = Tkinter.Button(group, text="+0.5", command=self._increment5RMSD)
+			w2_3.grid(row=2,column=5)
+			w2_4 = Tkinter.Button(group, text="-0.5", command=self._decrement5RMSD)
+			w2_4.grid(row=2,column=6)
+			w2_5 = Tkinter.Button(group, text="-0.1", command=self._decrementRMSD)
+			w2_5.grid(row=2,column=7)
 
-		# w3_0 = Tkinter.Label(group, text="Selection:")
-		# w3_0.grid(row=3,column=0)
-		# self.selection = Tkinter.StringVar()
-		# self.selection.set("")
-		# w3_1 = Tkinter.Entry(group, textvariable=self.selection)
-		# w3_1.grid(row=3,column=1,columnspan=5)
-		# w3_2 = Tkinter.Button(group, text="Redraw", command=self._redraw)
-		# w3_2.grid(row=3,column=6,columnspan=2)
+			w3_0 = Tkinter.Button(group, text="Plot Mobility", command=self._plotMobility)
+			w3_0.grid(row=3,column=0,columnspan=3)
+			w3_1 = Tkinter.Button(group, text="Load Heatmap", command=self._plotHeatmap)
+			w3_1.grid(row=3,column=3,columnspan=3)
+			w3_2 = Tkinter.Button(group, text="Plot Data", command=self._plotData)
+			w3_2.grid(row=3,column=6,columnspan=3)
 
-		w3_0 = Tkinter.Button(group, text="Plot Mobility", command=self._plotMobility)
-		w3_0.grid(row=3,column=0,columnspan=3)
-		w3_1 = Tkinter.Button(group, text="Load Heatmap", command=self._plotHeatmap)
-		w3_1.grid(row=3,column=3,columnspan=3)
-		w3_2 = Tkinter.Button(group, text="Plot Data", command=self._plotData)
-		w3_2.grid(row=3,column=6,columnspan=3)
+			w4_0 = Tkinter.Button(group, text="Main", command=self._showMain)
+			w4_0.grid(row=4,column=0,columnspan=2)
+			w4_1 = Tkinter.Button(group, text="Save", command=self._save)
+			w4_1.grid(row=4,column=2,columnspan=2)
+			w4_2 = Tkinter.Button(group, text="Remove", command=self._remove)
+			w4_2.grid(row=4,column=4,columnspan=2)
+			w4_3 = Tkinter.Button(group, text="Help", command=self._showHelp)
+			w4_3.grid(row=4,column=6,columnspan=2)
 
-		w4_0 = Tkinter.Button(group, text="Main", command=self._showMain)
-		w4_0.grid(row=4,column=0,columnspan=2)
-		w4_1 = Tkinter.Button(group, text="Save", command=self._save)
-		w4_1.grid(row=4,column=2,columnspan=2)
-		w4_2 = Tkinter.Button(group, text="Remove", command=self._remove)
-		w4_2.grid(row=4,column=4,columnspan=2)
-		w4_3 = Tkinter.Button(group, text="Help", command=self._showHelp)
-		w4_3.grid(row=4,column=6,columnspan=2)
+			group2 = Tkinter.LabelFrame(self.NMD_window, text = "Actions", padx = 5)
+			group2.pack()
+	
+			self.w6_0 = Tkinter.Label(group2, text="Mode (" + self.active_mode.get() + ")")
+			self.w6_0.grid(row=0,column=0,columnspan=2)
+			w6_1 = Tkinter.Button(group2, text="Draw", command=self._drawMode)
+			w6_1.grid(row=0,column=2,columnspan=2)
+			w6_2 = Tkinter.Button(group2, text="Clean", command=self._cleanMode)
+			w6_2.grid(row=0,column=4,columnspan=2)
+			self.w6_3 = Tkinter.Button(group2, text="Hide", command=self._hideMode)
+			self.w6_3.grid(row=0,column=6,columnspan=2)
+			self.w6_4 = Tkinter.Button(group2, text="Options", command=self._optionsMode)
+			self.w6_4.grid(row=0,column=8,columnspan=2)
+	
+			w7_0 = Tkinter.Label(group2, text="Animation:")
+			w7_0.grid(row=1,column=0,columnspan=2)
+			w7_1 = Tkinter.Button(group2, text="Make", command=self._buildMovie)
+			w7_1.grid(row=1,column=2,columnspan=2)
+			self.w7_2 = Tkinter.Button(group2, text="Play", command=self._playMovie)
+			self.w7_2.grid(row=1,column=4,columnspan=2)
+			self.w7_3 = Tkinter.Button(group2, text="Hide", command=self._hideMovie)
+			self.w7_3.grid(row=1,column=6,columnspan=2)
+			self.w7_4 = Tkinter.Button(group2, text="Options", command=self._optionsMovie)
+			self.w7_4.grid(row=1,column=8,columnspan=2)
 
-		group2 = Tkinter.LabelFrame(self.NMD_window, text = "Actions", padx = 5)
-		group2.pack()
+			w8_0 = Tkinter.Label(group2, text="Figures:")
+			w8_0.grid(row=2,column=0,columnspan=2)
+			w8_1 = Tkinter.Button(group2, text="Clear", command=self._clearSelection)
+			w8_1.grid(row=2,column=2,columnspan=2)
+			w8_2 = Tkinter.Button(group2, text="Close", command=self._clearFigure)
+			w8_2.grid(row=2,column=4,columnspan=2)
+			self.w8_3 = Tkinter.Button(group2, text="Hide", command=self._hideSelection)
+			self.w8_3.grid(row=2,column=6,columnspan=2)
+			self.w8_4 = Tkinter.Button(group2, text="Options", command=self._optionsSelection)
+			self.w8_4.grid(row=2,column=8,columnspan=2)
+	
+			w9_0 = Tkinter.Label(group2, text="Molecule:") ## Add the molecule number and check from nmwiz.tcl
+			w9_0.grid(row=3,column=0,columnspan=2)
+			w9_1 = Tkinter.Button(group2, text="Update", command=self._updateView)
+			w9_1.grid(row=3,column=2,columnspan=2)
+			w9_2 = Tkinter.Button(group2, text="Focus", command=self._focusView)
+			w9_2.grid(row=3,column=4,columnspan=2)
+			self.w9_3 = Tkinter.Button(group2, text="Hide", command=self._hideMolecule)
+			self.w9_3.grid(row=3,column=6,columnspan=2)
+			self.w9_4 = Tkinter.Button(group2, text="Options", command=self._optionsMolecule)
+			self.w9_4.grid(row=3,column=8,columnspan=2)
 
-		self.w6_0 = Tkinter.Label(group2, text="Mode (" + self.active_mode.get() + ")")
-		self.w6_0.grid(row=0,column=0,columnspan=2)
-		w6_1 = Tkinter.Button(group2, text="Draw", command=self._drawMode)
-		w6_1.grid(row=0,column=2,columnspan=2)
-		w6_2 = Tkinter.Button(group2, text="Clean", command=self._cleanMode)
-		w6_2.grid(row=0,column=4,columnspan=2)
-		self.w6_3 = Tkinter.Button(group2, text="Hide", command=self._hideMode)
-		self.w6_3.grid(row=0,column=6,columnspan=2)
-		self.w6_4 = Tkinter.Button(group2, text="Options", command=self._optionsMode)
-		self.w6_4.grid(row=0,column=8,columnspan=2)
+		elif self.nmdFormat == 'GNM':
 
-		w7_0 = Tkinter.Label(group2, text="Animation:")
-		w7_0.grid(row=1,column=0,columnspan=2)
-		w7_1 = Tkinter.Button(group2, text="Make", command=self._buildMovie)
-		w7_1.grid(row=1,column=2,columnspan=2)
-		self.w7_2 = Tkinter.Button(group2, text="Play", command=self._playMovie)
-		self.w7_2.grid(row=1,column=4,columnspan=2)
-		self.w7_3 = Tkinter.Button(group2, text="Hide", command=self._hideMovie)
-		self.w7_3.grid(row=1,column=6,columnspan=2)
-		self.w7_4 = Tkinter.Button(group2, text="Options", command=self._optionsMovie)
-		self.w7_4.grid(row=1,column=8,columnspan=2)
+			self.NMD_window = Tkinter.Toplevel()
+			self.NMD_window.title("NMWiz - " + self.name)
 
-		w8_0 = Tkinter.Label(group2, text="Figures:")
-		w8_0.grid(row=2,column=0,columnspan=2)
-		w8_1 = Tkinter.Button(group2, text="Clear", command=self._clearSelection)
-		w8_1.grid(row=2,column=2,columnspan=2)
-		w8_2 = Tkinter.Button(group2, text="Close", command=self._clearFigure)
-		w8_2.grid(row=2,column=4,columnspan=2)
-		self.w8_3 = Tkinter.Button(group2, text="Hide", command=self._hideSelection)
-		self.w8_3.grid(row=2,column=6,columnspan=2)
-		self.w8_4 = Tkinter.Button(group2, text="Options", command=self._optionsSelection)
-		self.w8_4.grid(row=2,column=8,columnspan=2)
+			group = Tkinter.LabelFrame(self.NMD_window, text = self.name, padx = 5)
+			group.pack()
 
-		w9_0 = Tkinter.Label(group2, text="Molecule:") ## Add the molecule number and check from nmwiz.tcl
-		w9_0.grid(row=3,column=0,columnspan=2)
-		w9_1 = Tkinter.Button(group2, text="Update", command=self._updateView)
-		w9_1.grid(row=3,column=2,columnspan=2)
-		w9_2 = Tkinter.Button(group2, text="Focus", command=self._focusView)
-		w9_2.grid(row=3,column=4,columnspan=2)
-		self.w9_3 = Tkinter.Button(group2, text="Hide", command=self._hideMolecule)
-		self.w9_3.grid(row=3,column=6,columnspan=2)
-		self.w9_4 = Tkinter.Button(group2, text="Options", command=self._optionsMolecule)
-		self.w9_4.grid(row=3,column=8,columnspan=2)
+			self.active_mode = Tkinter.StringVar(self.NMD_window)
+			OPTIONS = list(map(str,range(1,self.total_mode+1)))
+			self.active_mode.set(OPTIONS[0])
 
+			w0_0 = Tkinter.Label(group, text="Active Mode:")
+			w0_0.grid(row=0,column=0)
+			w0_1 = Tkinter.OptionMenu(group,self.active_mode,*tuple(OPTIONS),command=self.updateMode) #apply(Tkinter.OptionMenu, (group,self.active_mode) + tuple(OPTIONS))
+			w0_1.grid(row=0,column=1,columnspan=3)
+			w0_2 = Tkinter.Button(group, text="<=", command=self._activeModeReduce)
+			w0_2.grid(row=0,column=4)
+			w0_3 = Tkinter.Button(group, text="=>", command=self._activeModeIncrease)
+			w0_3.grid(row=0,column=5)
+
+			w1_0 = Tkinter.Button(group, text="Plot Mobility", command=self._plotMobility)
+			w1_0.grid(row=1,column=0,columnspan=3)
+			w1_1 = Tkinter.Button(group, text="Load Heatmap", command=self._plotHeatmap)
+			w1_1.grid(row=1,column=3,columnspan=3)
+			w1_2 = Tkinter.Button(group, text="Plot Data", command=self._plotData)
+			w1_2.grid(row=1,column=6,columnspan=3)
+
+			w2_0 = Tkinter.Button(group, text="Main", command=self._showMain)
+			w2_0.grid(row=2,column=0,columnspan=2)
+			w2_1 = Tkinter.Button(group, text="Save", command=self._save)
+			w2_1.grid(row=2,column=2,columnspan=2)
+			w2_2 = Tkinter.Button(group, text="Remove", command=self._remove)
+			w2_2.grid(row=2,column=4,columnspan=2)
+			w2_3 = Tkinter.Button(group, text="Help", command=self._showHelp)
+			w2_3.grid(row=2,column=6,columnspan=2)
+
+			group2 = Tkinter.LabelFrame(self.NMD_window, text = "Actions", padx = 5)
+			group2.pack()
+
+			w3_0 = Tkinter.Label(group2, text="Figures:")
+			w3_0.grid(row=0,column=0,columnspan=2)
+			w3_1 = Tkinter.Button(group2, text="Clear", command=self._clearSelection)
+			w3_1.grid(row=0,column=2,columnspan=2)
+			w3_2 = Tkinter.Button(group2, text="Close", command=self._clearFigure)
+			w3_2.grid(row=0,column=4,columnspan=2)
+			self.w8_3 = Tkinter.Button(group2, text="Hide", command=self._hideSelection)
+			self.w8_3.grid(row=0,column=6,columnspan=2)
+			self.w8_4 = Tkinter.Button(group2, text="Options", command=self._optionsSelection)
+			self.w8_4.grid(row=0,column=8,columnspan=2)
+	
+			w4_0 = Tkinter.Label(group2, text="Molecule:") ## Add the molecule number and check from nmwiz.tcl
+			w4_0.grid(row=1,column=0,columnspan=2)
+			w4_1 = Tkinter.Button(group2, text="Update", command=self._updateView)
+			w4_1.grid(row=1,column=2,columnspan=2)
+			w4_2 = Tkinter.Button(group2, text="Focus", command=self._focusView)
+			w4_2.grid(row=1,column=4,columnspan=2)
+			self.w9_3 = Tkinter.Button(group2, text="Hide", command=self._hideMolecule)
+			self.w9_3.grid(row=1,column=6,columnspan=2)
+			self.w9_4 = Tkinter.Button(group2, text="Options", command=self._optionsMolecule)
+			self.w9_4.grid(row=1,column=8,columnspan=2)
+
+		self.NMD_window.protocol("WM_DELETE_WINDOW", self._remove)
+
+			
 	def setOutputDir(self):
 		import tkFileDialog
 		self.outputDir.set(tkFileDialog.askdirectory())
@@ -512,42 +584,75 @@ class NMWizDialog(ModelessDialog):
 
 	def _buildMolecule(self):
 
-		try:
-			self.bfactors
-			self.bfactorsExist = True
-		except:
-			self.bfactorsExist = False
+		if self.nmdFormat == 'ANM':
+			try:
+				self.bfactors
+				self.bfactorsExist = True
+			except:
+				self.bfactorsExist = False
 
-		if self.bfactorsExist:
+			if self.bfactorsExist:
+				from colorsys import hsv_to_rgb
+				self.colors = np.zeros((self.atomNumber,3))
+				minbfactor = min(self.bfactors)
+				maxbfactor = max(self.bfactors)
+				for i in range(self.atomNumber):
+					colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
+					self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
+			self.m = Molecule()
+			for i in range(self.atomNumber):
+				residues = []
+				if i == 0:
+					r = self.m.newResidue("ALA"," ",i," ")
+					atomCA = self.m.newAtom("CA",Element("C"))
+					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
+					r.addAtom(atomCA)
+					atomCA_old = atomCA
+					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
+					residues.append(r)
+				else:
+					r = self.m.newResidue("ALA"," ",i," ")
+					atomCA = self.m.newAtom("CA",Element("C"))
+					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
+					r.addAtom(atomCA)
+					self.m.newBond(atomCA_old,atomCA)
+					atomCA_old = atomCA
+					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
+					residues.append(r)
+
+		elif self.nmdFormat == 'GNM':
 			from colorsys import hsv_to_rgb
 			self.colors = np.zeros((self.atomNumber,3))
-			minbfactor = min(self.bfactors)
-			maxbfactor = max(self.bfactors)
+			self._calcMSF()
+			minbfactor = min(self.beta_active)
+			maxbfactor = max(self.beta_active)
 			for i in range(self.atomNumber):
-				colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
+				colorHue = 0.66 - (self.beta_active[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
 				self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
-		self.m = Molecule()
-		for i in range(self.atomNumber):
-			residues = []
-			if i == 0:
-				r = self.m.newResidue("ALA"," ",i," ")
-				atomCA = self.m.newAtom("CA",Element("C"))
-				atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
-				r.addAtom(atomCA)
-				atomCA_old = atomCA
-				r.ribbonDisplay = True
-				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
-				residues.append(r)
-			else:
-				r = self.m.newResidue("ALA"," ",i," ")
-				atomCA = self.m.newAtom("CA",Element("C"))
-				atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
-				r.addAtom(atomCA)
-				self.m.newBond(atomCA_old,atomCA)
-				atomCA_old = atomCA
-				r.ribbonDisplay = True
-				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
-				residues.append(r)
+			self.m = Molecule()
+			for i in range(self.atomNumber):
+				residues = []
+				if i == 0:
+					r = self.m.newResidue("ALA"," ",i," ")
+					atomCA = self.m.newAtom("CA",Element("C"))
+					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
+					r.addAtom(atomCA)
+					atomCA_old = atomCA
+					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
+					residues.append(r)
+				else:
+					r = self.m.newResidue("ALA"," ",i," ")
+					atomCA = self.m.newAtom("CA",Element("C"))
+					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
+					r.addAtom(atomCA)
+					self.m.newBond(atomCA_old,atomCA)
+					atomCA_old = atomCA
+					r.ribbonDisplay = True
+					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
+					residues.append(r)
 
 	class NMWizTraj:
 		def __len__(self):
@@ -565,7 +670,7 @@ class NMWizDialog(ModelessDialog):
 	def _updateView(self):
 		return
 
-	def _focusView():
+	def _focusView(self):
 		rc("focus")
 
 	def _buildMovie(self):
@@ -768,8 +873,12 @@ class NMWizDialog(ModelessDialog):
 
 
 	def _calcMSF(self):
-		v = self.modes[int(self.active_mode.get())-1,:].reshape((self.atomNumber,3))
-		self.beta_active = np.sum(v*v,axis=1)
+		if self.nmdFormat == 'ANM':
+			v = self.modes[int(self.active_mode.get())-1,:].reshape((self.atomNumber,3))
+			self.beta_active = np.sum(v*v,axis=1)
+		elif self.nmdFormat == 'GNM': 
+			v = self.modes[int(self.active_mode.get())-1,:]
+			self.beta_active = v*v
 
 	def _calcCrossCorr(self):
 		v = self.modes[int(self.active_mode.get())-1,:].reshape((self.atomNumber,3))
@@ -783,7 +892,6 @@ class NMWizDialog(ModelessDialog):
 		stringDATA = ""
 		for i in range(self.atomNumber):
 			if np.linalg.norm(begin[i,:]-end[i,:])>1e-1:
-				print i
 				stringDATA = stringDATA + ".arrow %.3g %.3g %.3g %.3g %.3g %.3g %.3g %3.g\n" % (begin[i,0],begin[i,1],begin[i,2],end[i,0],end[i,1],end[i,2],0.2,0.4)
 		self.arrows = StringIO(stringDATA)
 
@@ -847,12 +955,12 @@ class NMWizDialog(ModelessDialog):
 		self.heatMapFileName.set(tkFileDialog.askopenfilename())
 		if self.heatMapFileName.get() != "":
 			heatmap, meta = nmwiz.parseHeatmap(heatmap = self.heatMapFileName.get())
-		plt.contourf(self.resIds,self.resIds,heatmap)
-		plt.xlabel("Atom/Residue #")
-		plt.ylabel("Atom/Residue #")
-		plt.title(meta['title'])
-		plt.colorbar()
-		plt.show()
+			plt.contourf(self.resIds,self.resIds,heatmap)
+			plt.xlabel("Atom/Residue #")
+			plt.ylabel("Atom/Residue #")
+			plt.title(meta['title'])
+			plt.colorbar()
+			plt.show()
 
 	def _plotData(self):
 		self.dataFileName = Tkinter.StringVar()
@@ -926,8 +1034,11 @@ class NMWizDialog(ModelessDialog):
 	def _remove(self):
 		self.NMD_window.destroy()
 		plt.close()
-		openModels.remove(self.proteinMol)
-		openModels.remove(self.arrowMol)
+		if self.nmdFormat == 'ANM':
+			openModels.remove(self.proteinMol)
+			openModels.remove(self.arrowMol)
+		else:
+			openModels.remove(self.proteinMol)
 		try:
 			self.mov.Close()
 			openModels.close(self.ProteinMovie)
@@ -1045,20 +1156,31 @@ class NMWizDialog(ModelessDialog):
 
 	def updateMode(self,active_mode):
 		OPTIONS = list(map(str,range(1,self.total_mode+1)))
-		COLOR_OPTIONS = colorDict.keys()
-		self.current_scale.set("%.2f" % self.scales[OPTIONS.index(active_mode)])
-		self.current_scale2.set("%.2f" % self.scales2[OPTIONS.index(active_mode)])
-		self.activeColor.set(COLOR_OPTIONS[OPTIONS.index(active_mode)])
-		self._updateArrows()
-		self._drawArrows()
-		self._colorArrows()
-		self._updateLabel()
-		try:
-			self.mov.Close()
-			openModels.close(self.ProteinMovie)
-		except:
-			pass
-		
+		if self.nmdFormat == 'ANM':
+			COLOR_OPTIONS = colorDict.keys()
+			self.current_scale.set("%.2f" % self.scales[OPTIONS.index(active_mode)])
+			self.current_scale2.set("%.2f" % self.scales2[OPTIONS.index(active_mode)])
+			self.activeColor.set(COLOR_OPTIONS[OPTIONS.index(active_mode)])
+			self._updateArrows()
+			self._drawArrows()
+			self._colorArrows()
+			self._updateLabel()
+			try:
+				self.mov.Close()
+				openModels.close(self.ProteinMovie)
+			except:
+				pass
+		elif self.nmdFormat == 'GNM':
+			from colorsys import hsv_to_rgb
+			self._calcMSF()
+			minbfactor = min(self.beta_active)
+			maxbfactor = max(self.beta_active)
+			for i in range(self.atomNumber):
+				colorHue = 0.66 - (self.beta_active[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
+				self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
+			residues = self.proteinMol.residues 
+			for i in range(self.atomNumber):
+				residues[i].ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
 
 	def _updateArrowScale(self):
 		self._updateArrows()
@@ -1109,7 +1231,7 @@ class NMWizDialog(ModelessDialog):
 
 	def _activeModeIncrease(self):
 		self.active_mode.set((int(self.active_mode.get())+1)%self.total_mode)
-		try:
+		try:	
 			self.mov.Close()
 			openModels.close(self.ProteinMovie)
 		except:
