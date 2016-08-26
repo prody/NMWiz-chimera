@@ -616,7 +616,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA = self.m.newAtom("CA",Element("C"))
 					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
 					r.addAtom(atomCA)
-					self.m.newBond(atomCA_old,atomCA)
+					if self.chainIds[i] == self.chainIds[i-1]:
+						self.m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -648,7 +649,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA = self.m.newAtom("CA",Element("C"))
 					atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
 					r.addAtom(atomCA)
-					self.m.newBond(atomCA_old,atomCA)
+					if self.chainIds[i] == self.chainIds[i-1]:
+						self.m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -719,7 +721,8 @@ class NMWizDialog(ModelessDialog):
 				atomCA = self.ProteinMovie.newAtom("CA",Element("C"))
 				atomCA.setCoord(Coord(self.coordinates[i,0],self.coordinates[i,1],self.coordinates[i,2]))
 				r.addAtom(atomCA)
-				self.ProteinMovie.newBond(atomCA_old,atomCA)
+				if self.chainIds[i] == self.chainIds[i-1]:
+					self.ProteinMovie.newBond(atomCA_old,atomCA)
 				atomCA_old = atomCA
 				r.ribbonDisplay = True
 				r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -740,7 +743,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA.setCoord(Coord(self.coordinates[i,0]+v[i,0]*(f+1)*0.04,self.coordinates[i,1]+v[i,1]*(f+1)*0.04,self.coordinates[i,2]+v[i,2]*(f+1)*0.04))
 					r.addAtom(atomCA)
 					if i != 0:
-						m.newBond(atomCA_old,atomCA)
+						if self.chainIds[i] == self.chainIds[i-1]:
+							m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -753,7 +757,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA.setCoord(Coord(self.coordinates[i,0]+v[i,0]*(50-f-1)*0.04,self.coordinates[i,1]+v[i,1]*(50-f-1)*0.04,self.coordinates[i,2]+v[i,2]*(50-f-1)*0.04))
 					r.addAtom(atomCA)
 					if i != 0:
-						m.newBond(atomCA_old,atomCA)
+						if self.chainIds[i] == self.chainIds[i-1]:
+							m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -767,7 +772,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA.setCoord(Coord(self.coordinates[i,0]-v[i,0]*(f+1-50)*0.04,self.coordinates[i,1]-v[i,1]*(f+1-50)*0.04,self.coordinates[i,2]-v[i,2]*(f+1-50)*0.04))
 					r.addAtom(atomCA)
 					if i != 0:
-						m.newBond(atomCA_old,atomCA)
+						if self.chainIds[i] == self.chainIds[i-1]:
+							m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
@@ -780,7 +786,8 @@ class NMWizDialog(ModelessDialog):
 					atomCA.setCoord(Coord(self.coordinates[i,0]-v[i,0]*(100-f-1)*0.04,self.coordinates[i,1]-v[i,1]*(100-f-1)*0.04,self.coordinates[i,2]-v[i,2]*(100-f-1)*0.04))
 					r.addAtom(atomCA)
 					if i != 0:
-						m.newBond(atomCA_old,atomCA)
+						if self.chainIds[i] == self.chainIds[i-1]:
+							m.newBond(atomCA_old,atomCA)
 					atomCA_old = atomCA
 					r.ribbonDisplay = True
 					r.ribbonColor = MaterialColor(self.colors[i,0],self.colors[i,1],self.colors[i,2])
