@@ -288,9 +288,11 @@ class NMWizDialog(ModelessDialog):
 			coords = np.zeros((self.selectionAtomNumber.get(),3))
 			atoms = selection.currentAtoms()
 			coordOrder = []
+			chainIds = []
 			i = 0 
 			for at in atoms:
 				coordOrder.append(at.residue.id.position)
+				chainIds.append(at.residue.id.chainId)
 				for j in range(3):
 					if j == 0:
 						coords[i,j]=at.coord().x
@@ -301,6 +303,8 @@ class NMWizDialog(ModelessDialog):
 				i += 1
 			sortedCoord = np.argsort(np.array(coordOrder))
 			coords = coords[sortedCoord,:]
+			chids = np.array(chainIds)
+			self.chainIds = list(chids[sortedCoord])
 			self.atomNumber = coords.shape[0]
 
 			if self.activeJob.get() == 'ANM calculation':
@@ -314,23 +318,39 @@ class NMWizDialog(ModelessDialog):
 				nm = prody.GNM(self.activeMoleculeStr.get())
 				nm.buildKirchhoff(coords,cutoff=float(self.Cutoff.get()),gamma=float(self.Gamma.get()))
 				nm.calcModes(n_modes=int(self.numberOfModes.get()))
-			
+				atomGroup = prody.AtomGroup()
+				atomGroup.setNames(['CA']*coords.shape[0])
+				atomGroup.setCoords(coords)
+
 			prody.writeNMD(self.outputDir.get() + "/" + self.outputFileName.get(), nm, atomGroup)
 			self.total_mode = int(self.numberOfModes.get())
 
-			self.scales = np.zeros(self.total_mode)
-			self.scales2 = np.zeros(self.total_mode)
-			self.modes = np.zeros((self.total_mode,coords.shape[0]*3))
-			self.rmsd = Tkinter.StringVar()
-			self.rmsd.set("2.0")
-			eigvals = anm.getVariances()**0.5
-			eigvecs = anm.getArray()
-			for i in range(self.total_mode):
-				self.scales[i] = eigvals[i]
-				self.modes[i,:] = np.transpose(eigvecs[:,i])
-				self.scales2[i] = float(self.rmsd.get())*np.sqrt(coords.shape[0])/self.scales[i]
-			
-			self.coordinates = coords
+			if self.activeJob.get() == 'ANM calculation':
+				self.scales = np.zeros(self.total_mode)
+				self.scales2 = np.zeros(self.total_mode)
+				self.modes = np.zeros((self.total_mode,coords.shape[0]*3))
+				self.rmsd = Tkinter.StringVar()
+				self.rmsd.set("2.0")
+				eigvals = nm.getVariances()**0.5
+				eigvecs = nm.getArray()
+				for i in range(self.total_mode):
+					self.scales[i] = eigvals[i]
+					self.modes[i,:] = np.transpose(eigvecs[:,i])
+					self.scales2[i] = float(self.rmsd.get())*np.sqrt(coords.shape[0])/self.scales[i]
+				self.nmdFormat = 'ANM'
+				self.coordinates = coords
+
+			elif self.activeJob.get() == 'GNM calculation':
+				self.modes = None
+				self.modes = np.zeros((self.total_mode,self.atomNumber))
+				eigvals = nm.getVariances()**0.5
+				eigvecs = nm.getArray()
+				for i in range(self.total_mode):
+					self.modes[i,:] = np.transpose(eigvecs[:,i])
+				self.nmdFormat = 'GNM'
+				self.coordinates = coords
+				self.coordOrder = coordOrder
+
 			self._buildNMDWindow()
 
 			if self.activeJob.get() == 'ANM calculation':
@@ -338,10 +358,15 @@ class NMWizDialog(ModelessDialog):
 				self._drawArrows()
 				self._colorArrows()		
 
+			if self.activeJob.get() == 'GNM calculation':
+				self._buildMolecule()
+
 			self.molecules = openModels.list()
 			self.proteinMol = self.molecules[0]
 			if self.activeJob.get() == 'ANM calculation':
 				self.arrowMol = self.molecules[1]
+			if self.activeJob.get() == 'GNM calculation':
+				self.updateMode(self.active_mode.get())
 			rc("ribspline cardinal spec @CA")
 
 			
@@ -587,11 +612,12 @@ class NMWizDialog(ModelessDialog):
 		if self.nmdFormat == 'ANM':
 			try:
 				self.bfactors
+				sumBFactors = sum(self.bfactors)
 				self.bfactorsExist = True
 			except:
 				self.bfactorsExist = False
 
-			if self.bfactorsExist:
+			if self.bfactorsExist and sumBFactors != 0.0:
 				from colorsys import hsv_to_rgb
 				self.colors = np.zeros((self.atomNumber,3))
 				minbfactor = min(self.bfactors)
@@ -599,6 +625,11 @@ class NMWizDialog(ModelessDialog):
 				for i in range(self.atomNumber):
 					colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
 					self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
+			else: 
+				randomColor = np.random.rand(3)
+				self.colors = np.zeros((self.atomNumber,3))
+				for i in range(self.atomNumber):
+					self.colors[i] = randomColor
 			self.m = Molecule()
 			for i in range(self.atomNumber):
 				residues = []
@@ -691,11 +722,12 @@ class NMWizDialog(ModelessDialog):
 
 		try:
 			self.bfactors
+			sumBFactors = sum(self.bfactors)
 			self.bfactorsExist = True
 		except:
 			self.bfactorsExist = False
 
-		if self.bfactorsExist:
+		if self.bfactorsExist and sumBFactors != 0.0:
 			from colorsys import hsv_to_rgb
 			self.colors = np.zeros((self.atomNumber,3))
 			minbfactor = min(self.bfactors)
@@ -703,6 +735,12 @@ class NMWizDialog(ModelessDialog):
 			for i in range(self.atomNumber):
 				colorHue = 0.66 - (self.bfactors[i]-minbfactor)/(maxbfactor-minbfactor)*(0.66-0.00)
 				self.colors[i] =  hsv_to_rgb(colorHue,1.0,1.0)
+
+		else:
+			randomColor = np.random.rand(3)
+			self.colors = np.zeros((self.atomNumber,3))
+			for i in range(self.atomNumber):
+				self.colors[i] = randomColor
 
 		self.ProteinMovie = Molecule()
 		for i in range(self.atomNumber):
@@ -884,6 +922,11 @@ class NMWizDialog(ModelessDialog):
 			v = self.modes[int(self.active_mode.get())-1,:].reshape((self.atomNumber,3))
 			self.beta_active = np.sum(v*v,axis=1)
 		elif self.nmdFormat == 'GNM': 
+			try:
+				self.active_mode.get()
+			except:
+				self.active_mode = Tkinter.StringVar()
+				self.active_mode.set("1")
 			v = self.modes[int(self.active_mode.get())-1,:]
 			self.beta_active = v*v
 
