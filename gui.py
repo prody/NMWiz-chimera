@@ -283,6 +283,7 @@ class NMWizDialog(ModelessDialog):
 			prody_imported = True
 		except:
 			prody_imported = False
+			print("Please install ProDy in your Chimera Python and set the right path for the file.")
 
 		if prody_imported is True:
 			coords = np.zeros((self.selectionAtomNumber.get(),3))
@@ -368,6 +369,8 @@ class NMWizDialog(ModelessDialog):
 			if self.activeJob.get() == 'GNM calculation':
 				self.updateMode(self.active_mode.get())
 			rc("ribspline cardinal spec @CA")
+
+
 
 			
 	def _buildNMDWindow(self):
