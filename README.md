@@ -1,7 +1,7 @@
 Normal Mode Wizard
 ==================
 
-Normal Mode Wizard (NMWiz) is a [Chimera][] plugin designed for visual analysis of normal mode data. Modes may come from principal component, essential dynamics, normal mode analysis or may be any vector describing a molecular motion.
+Normal Mode Wizard (NMWiz) is a [Chimera](https://www.cgl.ucsf.edu/chimera/) plugin designed for visual analysis of normal mode data. Modes may come from principal component, essential dynamics, normal mode analysis or may be any vector describing a molecular motion.
 
 NMWiz can be used for:
 
@@ -19,7 +19,7 @@ NMWiz - Chimera can be downloaded from prody.csb.pitt.edu
 Documentation
 -------------
 
-See [NMWiz][] homepage for documentation and tutorials.
+See [NMWiz](http://prody.csb.pitt.edu/nmwiz/) homepage for documentation and tutorials.
 
 Reference
 ---------
